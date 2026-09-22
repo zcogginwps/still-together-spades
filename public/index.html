@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#0d1b16">
+<meta name="description" content="Play Spades with three friends while you're all on the same FaceTime call.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Still Together - Spades</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body data-ft="off" data-screen="home">
+
+<!-- ------------------------------------------------------------ home ------ -->
+<section id="screen-home" class="screen">
+  <div class="home-inner">
+    <header class="brand">
+      <p class="series">Still Together</p>
+      <h1>Spades</h1>
+      <p class="tagline">Four people, one call, one deck.<br>Start a game and send the link to your table.</p>
+    </header>
+
+    <div class="card-panel">
+      <label class="field">
+        <span>Your name</span>
+        <input id="input-name" type="text" maxlength="18" autocomplete="nickname" placeholder="Who's playing?">
+      </label>
+
+      <button id="btn-create" class="btn btn-primary btn-big">Start a new game</button>
+
+      <div class="divider"><span>or join one</span></div>
+
+      <div class="join-row">
+        <input id="input-code" type="text" maxlength="4" inputmode="text" autocapitalize="characters"
+               autocomplete="off" spellcheck="false" placeholder="CODE" aria-label="Game code">
+        <button id="btn-join" class="btn btn-secondary">Join</button>
+      </div>
+    </div>
+
+    <details class="how">
+      <summary>How this works with FaceTime</summary>
+      <ol>
+        <li>Start the FaceTime call with your three players first.</li>
+        <li>Swipe up to go to your home screen &mdash; FaceTime shrinks to a small floating window.</li>
+        <li>Open this link in Safari or Chrome. Drag the FaceTime window into a corner.</li>
+        <li>Tell the game which corner you parked it in, and the table will stay clear of it.</li>
+      </ol>
+    </details>
+    <p class="build">Beta &middot; <span id="build-tag">v0.1</span></p>
+  </div>
+</section>
+
+<!-- ----------------------------------------------------------- lobby ------ -->
+<section id="screen-lobby" class="screen">
+  <header class="topbar">
+    <button class="icon-btn" id="lobby-leave" aria-label="Leave game">&larr;</button>
+    <div class="topbar-title">Table <strong id="lobby-code">----</strong></div>
+    <button class="icon-btn" id="lobby-display" aria-label="Display settings">&#9881;</button>
+  </header>
+
+  <div class="scroll-area">
+    <div class="share-block">
+      <p class="share-lead">Send this to the other three</p>
+      <div class="share-link" id="share-link">&nbsp;</div>
+      <div class="share-actions">
+        <button class="btn btn-primary" id="btn-share">Share link</button>
+        <button class="btn btn-secondary" id="btn-copy">Copy</button>
+      </div>
+      <p class="share-hint">Or they can open the site and type the code <strong id="lobby-code-2">----</strong>.</p>
+    </div>
+
+    <h2 class="section-head">The table</h2>
+    <div class="seat-grid" id="seat-grid"></div>
+    <p class="seat-note">You and the player across from you are partners.</p>
+
+    <h2 class="section-head">House rules <span id="rules-lock" class="lock-note"></span></h2>
+    <div id="settings-list" class="settings-list"></div>
+
+    <div id="watchers" class="watchers"></div>
+  </div>
+
+  <footer class="lobby-footer">
+    <button id="btn-start" class="btn btn-primary btn-big">Start the game</button>
+    <p id="start-hint" class="start-hint"></p>
+  </footer>
+</section>
+
+<!-- ----------------------------------------------------------- table ------ -->
+<section id="screen-table" class="screen">
+  <header class="topbar table-top">
+    <button class="icon-btn" id="table-menu" aria-label="Menu">&#9776;</button>
+    <div class="scoreline">
+      <div class="score-team" id="score-us"><span class="lbl">Us</span><span class="val">0</span><span class="bags"></span></div>
+      <div class="score-sep">&ndash;</div>
+      <div class="score-team" id="score-them"><span class="lbl">Them</span><span class="val">0</span><span class="bags"></span></div>
+    </div>
+    <button class="icon-btn" id="table-score" aria-label="Scoreboard">&#9776;&#65038;</button>
+  </header>
+
+  <div class="table" id="table">
+    <div class="ft-reserve" id="ft-reserve"><span>FaceTime</span></div>
+
+    <div class="seat seat-north" data-seat-pos="north"></div>
+    <div class="seat seat-west"  data-seat-pos="west"></div>
+    <div class="seat seat-east"  data-seat-pos="east"></div>
+    <div class="seat seat-south" data-seat-pos="south"></div>
+
+    <div class="trick" id="trick"></div>
+    <div class="table-banner" id="banner"></div>
+  </div>
+
+  <div class="sheet inline" id="sheet-bid" hidden>
+    <div class="sheet-inner">
+      <h3 id="bid-title">Your bid</h3>
+      <p class="sheet-sub" id="bid-sub"></p>
+      <div class="bid-grid" id="bid-grid"></div>
+      <button class="btn btn-nil" id="btn-nil">Nil &mdash; I'll take none</button>
+    </div>
+  </div>
+
+  <div class="sheet inline" id="sheet-blind" hidden>
+    <div class="sheet-inner">
+      <h3>Blind nil?</h3>
+      <p class="sheet-sub">Decide before you see your cards. Worth <strong id="blind-worth">200</strong>, and the same if you miss it.</p>
+      <div class="sheet-row">
+        <button class="btn btn-nil" id="btn-blind-yes">Go blind nil</button>
+        <button class="btn btn-secondary" id="btn-blind-no">Look at my cards</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="hand-area">
+    <div class="hand-msg" id="hand-msg"></div>
+    <div class="hand" id="hand"></div>
+  </div>
+
+  <div class="sheet" id="sheet-hand-end" hidden>
+    <div class="sheet-inner">
+      <h3 id="hand-end-title">Hand over</h3>
+      <div id="hand-end-body"></div>
+      <button class="btn btn-primary btn-big" id="btn-continue">Continue</button>
+      <p class="sheet-sub" id="continue-waiting"></p>
+    </div>
+  </div>
+
+  <div class="sheet" id="sheet-game-end" hidden>
+    <div class="sheet-inner">
+      <h3 id="game-end-title">Game over</h3>
+      <div id="game-end-body"></div>
+      <button class="btn btn-primary btn-big" id="btn-new-game">Back to the table</button>
+    </div>
+  </div>
+</section>
+
+<!-- ---------------------------------------------------------- overlays ---- -->
+<div class="overlay" id="overlay-scores" hidden>
+  <div class="overlay-inner">
+    <header class="overlay-head"><h3>Scoreboard</h3><button class="icon-btn" data-close-overlay>&times;</button></header>
+    <div id="scoreboard-body"></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-menu" hidden>
+  <div class="overlay-inner">
+    <header class="overlay-head"><h3>Menu</h3><button class="icon-btn" data-close-overlay>&times;</button></header>
+    <div id="menu-body"></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-display" hidden>
+  <div class="overlay-inner">
+    <header class="overlay-head"><h3>Display</h3><button class="icon-btn" data-close-overlay>&times;</button></header>
+
+    <h4 class="overlay-sub">Where is your FaceTime window?</h4>
+    <p class="overlay-note">The table will keep that corner clear. This is just for you &mdash; everyone can pick their own.</p>
+    <div class="corner-picker" id="corner-picker">
+      <button data-ft="tl">Top left</button>
+      <button data-ft="tr">Top right</button>
+      <button data-ft="bl">Bottom left</button>
+      <button data-ft="br">Bottom right</button>
+      <button data-ft="off" class="wide">No reserved corner</button>
+    </div>
+
+    <h4 class="overlay-sub">Playing cards</h4>
+    <label class="toggle-row">
+      <span>Tap once to play<small>Off means tap to pick, tap again to confirm</small></span>
+      <input type="checkbox" id="opt-quickplay">
+    </label>
+    <label class="toggle-row">
+      <span>Sound<small>Quiet clicks and a chime when a trick lands</small></span>
+      <input type="checkbox" id="opt-sound">
+    </label>
+    <label class="toggle-row">
+      <span>Big cards<small>Larger, easier to hit</small></span>
+      <input type="checkbox" id="opt-bigcards">
+    </label>
+    <label class="toggle-row">
+      <span>Keep screen awake<small>Stops the phone dimming mid-hand</small></span>
+      <input type="checkbox" id="opt-wakelock">
+    </label>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+<div id="conn-banner" class="conn-banner" hidden>Reconnecting&hellip;</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

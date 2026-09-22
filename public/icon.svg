@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Still Together Spades">
+  <defs>
+    <linearGradient id="felt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1a4433"/><stop offset="1" stop-color="#0c1f18"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f3d896"/><stop offset="1" stop-color="#b2935a"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#felt)"/>
+  <path fill="url(#gold)" d="M256 96c-8 0-14 5-19 12-26 37-99 92-99 156 0 44 33 74 73 74 15 0 28-4 39-12l-22 78h56l-22-78c11 8 24 12 39 12 40 0 73-30 73-74 0-64-73-119-99-156-5-7-11-12-19-12z"/>
+</svg>

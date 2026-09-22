@@ -1,0 +1,12 @@
+# One-click deploy on Render: New > Blueprint, point it at this repo.
+services:
+  - type: web
+    name: still-together-spades
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: node server/index.js
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
