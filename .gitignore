@@ -7,3 +7,6 @@ npm-debug.log*
 .vercel
 .idea/
 .vscode/
+
+# screenshots written by test/e2e.mjs
+e2e-*.png
