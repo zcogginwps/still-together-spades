@@ -1,7 +1,7 @@
-# One-click deploy on Render: New > Blueprint, point it at this repo.
+# One-click deploy on Render: use the button in README.md, or New > Blueprint.
 services:
   - type: web
-    name: still-together-spades
+    name: still-together-classics
     runtime: node
     plan: free
     buildCommand: npm ci

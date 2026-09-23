@@ -1,5 +1,5 @@
 # Deploy on Fly.io:  fly launch --copy-config --now
-app = "still-together-spades"
+app = "still-together-classics"
 primary_region = "iad"
 
 [build]
