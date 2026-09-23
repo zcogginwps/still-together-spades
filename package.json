@@ -1,8 +1,8 @@
 {
-  "name": "still-together-spades",
-  "version": "0.1.0-beta.1",
+  "name": "still-together-classics",
+  "version": "0.2.0-beta.1",
   "private": true,
-  "description": "Still Together - Spades: 4-player online Spades built to be played while you're on a FaceTime call.",
+  "description": "Still Together - Classics: classic games built to be played while you're already on a FaceTime call together.",
   "type": "module",
   "engines": {
     "node": ">=20"

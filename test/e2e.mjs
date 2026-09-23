@@ -25,9 +25,35 @@ async function newPhone(name) {
   return { ctx, page, name };
 }
 
-console.log('\n--- 1. Host creates a table -------------------------------------');
+console.log('\n--- 0. The game picker ------------------------------------------');
 const host = await newPhone('host');
 await host.page.goto(BASE);
+await host.page.waitForSelector('body[data-screen="picker"]', { timeout: 5000 });
+
+const tiles = await host.page.$$eval('.game-tile', (n) => n.map((t) => ({
+  id: t.dataset.game,
+  name: t.querySelector('.g-name').textContent,
+  ready: t.classList.contains('ready'),
+})));
+tiles.length === 8 ? ok(`picker lists all eight games: ${tiles.map((t) => t.name).join(', ')}`) : bad('tile count', String(tiles.length));
+const ready = tiles.filter((t) => t.ready).map((t) => t.id);
+JSON.stringify(ready) === '["spades"]' ? ok('spades is the only one marked Ready') : bad('ready tiles', JSON.stringify(ready));
+
+// An unbuilt game says so instead of opening an empty table.
+await host.page.click('.game-tile[data-game="chess"]');
+await host.page.waitForTimeout(250);
+const stillPicker = await host.page.$eval('body', (b) => b.dataset.screen);
+const toastText = await host.page.textContent('#toast').catch(() => '');
+stillPicker === 'picker' && /not built yet/i.test(toastText)
+  ? ok(`tapping Chess stays put and explains: "${toastText.trim()}"`)
+  : bad('unbuilt game did not hold', `screen=${stillPicker} toast=${toastText}`);
+await host.page.screenshot({ path: 'e2e-picker.png' });
+
+console.log('\n--- 1. Host creates a table -------------------------------------');
+await host.page.click('.game-tile[data-game="spades"]');
+await host.page.waitForSelector('body[data-screen="home"]', { timeout: 5000 });
+const homeTitle = await host.page.textContent('#home-game-name');
+homeTitle.trim() === 'Spades' ? ok('Spades opens its own start screen') : bad('home title', homeTitle);
 await host.page.fill('#input-name', 'Zach');
 await host.page.click('#btn-create');
 await host.page.waitForSelector('body[data-screen="lobby"]', { timeout: 5000 });
@@ -42,7 +68,7 @@ const friends = [];
 for (const name of ['Maya', 'Dre', 'Sam']) {
   const p = await newPhone(name);
   await p.page.goto(`${BASE}/${code}`);
-  await p.page.waitForSelector('#input-name', { timeout: 5000 });
+  await p.page.waitForSelector('body[data-screen="home"]', { timeout: 5000 });
   await p.page.fill('#input-name', name);
   await p.page.click('#btn-join');
   await p.page.waitForSelector('body[data-screen="lobby"]', { timeout: 5000 });
@@ -233,7 +259,27 @@ if (!fails.some((f) => f.includes('horizontal'))) ok('no page scrolls sideways a
 
 await host.page.screenshot({ path: 'e2e-table.png' });
 await friends[0].page.screenshot({ path: 'e2e-table-2.png' });
+console.log('\n--- 8. The root always goes home, with a way back ---------------');
 await host.page.goto(BASE);
+await host.page.waitForSelector('body[data-screen="picker"]', { timeout: 8000 });
+ok('visiting the root lands on the picker, not back in the old table');
+await host.page.waitForTimeout(300);
+const rejoinVisible = await host.page.$eval('#rejoin', (n) => !n.hidden).catch(() => false);
+const rejoinText = rejoinVisible ? (await host.page.textContent('#rejoin')).replace(/\s+/g, ' ').trim() : '';
+rejoinVisible && /Back to your Spades table/.test(rejoinText)
+  ? ok(`and offers the way back: "${rejoinText.slice(0, 60)}"`)
+  : bad('no rejoin offer on the picker', rejoinText);
+
+await host.page.click('#rejoin .r-go');
+await host.page.waitForSelector('body[data-screen="table"], body[data-screen="lobby"]', { timeout: 8000 });
+ok('tapping Rejoin puts you back at the table');
+
+await host.page.goto(BASE);
+await host.page.waitForSelector('body[data-screen="picker"]');
+await host.page.click('#rejoin .r-no');
+await host.page.waitForTimeout(200);
+const dismissed = await host.page.$eval('#rejoin', (n) => n.hidden);
+dismissed ? ok('and "No" clears it') : bad('rejoin offer would not dismiss');
 await host.page.screenshot({ path: 'e2e-home.png' });
 
 console.log('\n================================================================');

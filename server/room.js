@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { SpadesGame, GameError } from './game.js';
-import { defaultSettings, sanitizeSettings } from './rules.js';
+import { GameError } from './game.js';
+import { engineFor } from './engines.js';
 import { chooseBid, chooseBlind, chooseCard, BOT_NAMES } from './bot.js';
 
 // Letters and digits that survive being read aloud over a phone call.
@@ -15,14 +15,17 @@ const ROOM_IDLE_MS = 6 * 60 * 60 * 1000;
 const randBetween = ([lo, hi]) => lo + Math.random() * (hi - lo);
 
 export class Room {
-  constructor(code, hub) {
+  constructor(code, hub, gameId) {
     this.code = code;
     this.hub = hub;
+    this.gameId = gameId;
+    this.engine = engineFor(gameId);
+    if (!this.engine) throw new GameError('That game is not playable yet.');
     this.players = new Map();       // playerId -> player
     this.seats = [null, null, null, null];  // playerId per seat
     this.hostId = null;
-    this.settings = defaultSettings();
-    this.game = new SpadesGame(this.settings);
+    this.settings = this.engine.defaults();
+    this.game = this.engine.create(this.settings);
     this.chat = [];
     this.timer = null;
     this.touchedAt = Date.now();
@@ -128,7 +131,7 @@ export class Room {
   updateSettings(playerId, patch) {
     if (playerId !== this.hostId) throw new GameError('Only the host can change the house rules.');
     if (this.game.state.phase !== 'lobby') throw new GameError('House rules are locked once a game starts.');
-    this.settings = sanitizeSettings(patch, this.settings);
+    this.settings = this.engine.sanitize(patch, this.settings);
     this.game.settings = this.settings;
   }
 
@@ -145,7 +148,7 @@ export class Room {
     if (playerId !== this.hostId) throw new GameError('Only the host can start a new game.');
     if (this.game.state.phase !== 'gameEnd') throw new GameError('Finish this game first.');
     this.clearTimer();
-    this.game = new SpadesGame(this.settings);
+    this.game = this.engine.create(this.settings);
     this.game.state.phase = 'lobby';
   }
 
@@ -251,6 +254,7 @@ export class Room {
     const g = this.game;
     return {
       code: this.code,
+      gameId: this.gameId,
       youId: playerId,
       youSeat: seat === -1 ? null : seat,
       isHost: playerId === this.hostId,

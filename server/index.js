@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { Room, makeRoomCode, GameError } from './room.js';
-import { SETTINGS_SCHEMA } from './rules.js';
+import { GAMES, playableGame, DEFAULT_GAME } from '../public/catalog.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
@@ -53,8 +53,8 @@ function serveStatic(req, res) {
 
 const server = http.createServer((req, res) => {
   if (req.url === '/healthz') { res.writeHead(200, { 'content-type': 'text/plain' }).end('ok'); return; }
-  if (req.url === '/api/schema') {
-    res.writeHead(200, { 'content-type': MIME['.json'] }).end(JSON.stringify(SETTINGS_SCHEMA));
+  if (req.url === '/api/games') {
+    res.writeHead(200, { 'content-type': MIME['.json'] }).end(JSON.stringify(GAMES));
     return;
   }
   serveStatic(req, res);
@@ -86,7 +86,7 @@ wss.on('connection', (socket) => {
   let room = null;
   let playerId = null;
 
-  hub.send(socket, { t: 'hello', schema: SETTINGS_SCHEMA });
+  hub.send(socket, { t: 'hello', games: GAMES });
 
   socket.on('message', (raw) => {
     let msg;
@@ -96,13 +96,16 @@ wss.on('connection', (socket) => {
     try {
       // ---- joining ----
       if (msg.t === 'create') {
+        const gameId = String(msg.gameId ?? DEFAULT_GAME);
+        const game = playableGame(gameId);
+        if (!game) throw new GameError('That game is not playable yet.');
         const code = makeRoomCode((c) => rooms.has(c));
-        room = new Room(code, hub);
+        room = new Room(code, hub, gameId);
         rooms.set(code, room);
         const player = room.addPlayer({ name: msg.name, socket });
         playerId = player.id;
         if (msg.settings) room.updateSettings(playerId, msg.settings);
-        hub.send(socket, { t: 'joined', playerId, code });
+        hub.send(socket, { t: 'joined', playerId, code, gameId, schema: room.engine.schema });
         room.broadcast();
         return;
       }
@@ -114,7 +117,7 @@ wss.on('connection', (socket) => {
         room = target;
         const player = room.addPlayer({ playerId: msg.playerId, name: msg.name, socket });
         playerId = player.id;
-        hub.send(socket, { t: 'joined', playerId, code: room.code });
+        hub.send(socket, { t: 'joined', playerId, code: room.code, gameId: room.gameId, schema: room.engine.schema });
         room.broadcast();
         return;
       }

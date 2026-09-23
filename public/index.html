@@ -4,25 +4,52 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <meta name="theme-color" content="#0d1b16">
-<meta name="description" content="Play Spades with three friends while you're all on the same FaceTime call.">
+<meta name="description" content="Classic games built to be played while you're already on a FaceTime call together.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
-<title>Still Together - Spades</title>
+<title>Still Together - Classics</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon.svg">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="styles.css">
 </head>
-<body data-ft="off" data-screen="home">
+<body data-ft="off" data-screen="picker">
+
+<!-- ----------------------------------------------------------- picker ----- -->
+<section id="screen-picker" class="screen">
+  <div class="picker-inner">
+    <header class="brand">
+      <p class="series">Still Together</p>
+      <h1>Classics</h1>
+      <p class="tagline">Games for people already on a call.<br>Pick one and send the link to your table.</p>
+    </header>
+
+    <div class="rejoin" id="rejoin" hidden></div>
+
+    <div class="game-grid" id="game-grid"></div>
+
+    <details class="how">
+      <summary>How this works with FaceTime</summary>
+      <ol>
+        <li>Start the FaceTime call with your players first.</li>
+        <li>Swipe up to go to your home screen &mdash; FaceTime shrinks to a small floating window.</li>
+        <li>Open this link in Safari or Chrome. Drag the FaceTime window into a corner.</li>
+        <li>Tell the game which corner you parked it in, and the table will stay clear of it.</li>
+      </ol>
+    </details>
+    <p class="build">Beta &middot; <span id="build-tag">v0.2</span></p>
+  </div>
+</section>
 
 <!-- ------------------------------------------------------------ home ------ -->
 <section id="screen-home" class="screen">
   <div class="home-inner">
+    <button class="back-link" id="home-back">&larr; All games</button>
     <header class="brand">
       <p class="series">Still Together</p>
-      <h1>Spades</h1>
-      <p class="tagline">Four people, one call, one deck.<br>Start a game and send the link to your table.</p>
+      <h1 id="home-game-name">Spades</h1>
+      <p class="tagline" id="home-game-blurb"></p>
     </header>
 
     <div class="card-panel">
@@ -42,16 +69,6 @@
       </div>
     </div>
 
-    <details class="how">
-      <summary>How this works with FaceTime</summary>
-      <ol>
-        <li>Start the FaceTime call with your three players first.</li>
-        <li>Swipe up to go to your home screen &mdash; FaceTime shrinks to a small floating window.</li>
-        <li>Open this link in Safari or Chrome. Drag the FaceTime window into a corner.</li>
-        <li>Tell the game which corner you parked it in, and the table will stay clear of it.</li>
-      </ol>
-    </details>
-    <p class="build">Beta &middot; <span id="build-tag">v0.1</span></p>
   </div>
 </section>
 
@@ -59,7 +76,7 @@
 <section id="screen-lobby" class="screen">
   <header class="topbar">
     <button class="icon-btn" id="lobby-leave" aria-label="Leave game">&larr;</button>
-    <div class="topbar-title">Table <strong id="lobby-code">----</strong></div>
+    <div class="topbar-title"><span id="lobby-game">Spades</span> &middot; <strong id="lobby-code">----</strong></div>
     <button class="icon-btn" id="lobby-display" aria-label="Display settings">&#9881;</button>
   </header>
 

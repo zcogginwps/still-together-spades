@@ -1,7 +1,7 @@
 {
-  "name": "Still Together - Spades",
-  "short_name": "ST Spades",
-  "description": "Play Spades with three friends while you're all on the same FaceTime call.",
+  "name": "Still Together - Classics",
+  "short_name": "ST Classics",
+  "description": "Classic games built to be played while you're already on a FaceTime call together.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -1,5 +1,6 @@
 import { Net } from './net.js';
 import { sfx, setSoundEnabled, unlockAudio } from './sound.js';
+import { GAMES, gameById, playableGame } from './catalog.js';
 
 const $ = (id) => document.getElementById(id);
 const SUIT_CHAR = { S: '♠', H: '♥', D: '♦', C: '♣' };
@@ -30,6 +31,7 @@ const savePrefs = () => saveJSON(PREFS_KEY, prefs);
 const net = new Net();
 const app = {
   schema: [],
+  gameId: null,
   state: null,
   picked: null,
   prevPhase: null,
@@ -97,12 +99,76 @@ function applyDisplayPrefs() {
   if (prefs.wakeLock) requestWakeLock(); else releaseWakeLock();
 }
 
+// -------------------------------------------------------------------- picker
+
+function renderPicker() {
+  const grid = $('game-grid');
+  grid.innerHTML = '';
+  for (const game of GAMES) {
+    const ready = game.status === 'playable';
+    const tile = document.createElement('button');
+    tile.className = `game-tile ${ready ? 'ready' : 'soon'}`;
+    tile.dataset.game = game.id;
+    tile.innerHTML =
+      `<span class="g-chip">${ready ? 'Ready' : 'Soon'}</span>` +
+      `<span class="g-mark">${game.mark}</span>` +
+      `<span class="g-name">${escapeHtml(game.name)}</span>` +
+      `<span class="g-line">${escapeHtml(game.tagline)}</span>` +
+      `<span class="g-players">${escapeHtml(game.players)}</span>`;
+    grid.appendChild(tile);
+  }
+}
+
+function selectGame(id) {
+  const game = playableGame(id);
+  if (!game) {
+    const named = gameById(id);
+    toast(named ? `${named.name} is not built yet. Spades is ready now.` : 'That game is not ready yet.');
+    return;
+  }
+  app.gameId = game.id;
+  $('home-game-name').textContent = game.name;
+  $('home-game-blurb').textContent = game.blurb ?? game.tagline;
+  setScreen('home');
+  history.replaceState(null, '', `/${game.id}`);
+  if (!$('input-name').value) $('input-name').focus();
+}
+
+function showRejoinOffer(session) {
+  const node = $('rejoin');
+  const name = gameById(session.gameId)?.name ?? 'table';
+  node.innerHTML =
+    `<div class="r-text"><strong>Back to your ${escapeHtml(name)} table?</strong>` +
+    `<small>You were sitting at ${escapeHtml(session.code)}.</small></div>` +
+    `<div class="r-actions"><button class="r-go">Rejoin</button><button class="r-no">No</button></div>`;
+  node.hidden = false;
+
+  node.querySelector('.r-go').onclick = () => {
+    node.hidden = true;
+    net.setRejoin({ code: session.code, name: prefs.name, playerId: session.playerId });
+    net.send({ t: 'join', code: session.code, name: prefs.name, playerId: session.playerId });
+  };
+  node.querySelector('.r-no').onclick = () => {
+    node.hidden = true;
+    try { localStorage.removeItem(SESSION_KEY); } catch { /* private mode */ }
+  };
+}
+
+function showPicker() {
+  app.gameId = null;
+  renderPicker();
+  $('rejoin').hidden = true;
+  setScreen('picker');
+  history.replaceState(null, '', '/');
+}
+
 // --------------------------------------------------------------------- lobby UI
 
 function renderLobby() {
   const s = app.state;
   $('lobby-code').textContent = s.code;
   $('lobby-code-2').textContent = s.code;
+  $('lobby-game').textContent = gameById(s.gameId)?.name ?? 'Game';
 
   const link = `${location.origin}/${s.code}`;
   $('share-link').textContent = link;
@@ -574,13 +640,14 @@ function applyState(next) {
   if (!$('overlay-scores').hidden) renderScoreboard();
   if (!$('overlay-menu').hidden) renderMenu();
 
-  saveJSON(SESSION_KEY, { code: next.code, playerId: next.youId, at: Date.now() });
+  saveJSON(SESSION_KEY, { code: next.code, playerId: next.youId, gameId: next.gameId, at: Date.now() });
 }
 
-net.addEventListener('hello', (e) => { app.schema = e.detail.schema ?? []; });
-
 net.addEventListener('joined', (e) => {
-  const { playerId, code } = e.detail;
+  const { playerId, code, gameId, schema } = e.detail;
+  // Each game brings its own house rules, so the lobby is built from this.
+  if (schema) app.schema = schema;
+  if (gameId) app.gameId = gameId;
   net.setRejoin({ code, playerId, name: prefs.name });
   history.replaceState(null, '', `/${code}`);
 });
@@ -595,12 +662,13 @@ net.addEventListener('error', (e) => {
 net.addEventListener('kicked', (e) => {
   toast(e.detail.message ?? 'Disconnected.', 5000);
   net.close();
-  setScreen('home');
+  showPicker();
 });
 
 net.addEventListener('open', () => { $('conn-banner').hidden = true; });
 net.addEventListener('close', () => {
-  if (document.body.dataset.screen !== 'home') $('conn-banner').hidden = false;
+  const screen = document.body.dataset.screen;
+  if (screen === 'lobby' || screen === 'table') $('conn-banner').hidden = false;
 });
 
 // ---------------------------------------------------------------- wake lock
@@ -633,7 +701,8 @@ function startGameFlow(mode) {
   unlockAudio();
 
   if (mode === 'create') {
-    net.send({ t: 'create', name });
+    if (!app.gameId) { showPicker(); return; }
+    net.send({ t: 'create', name, gameId: app.gameId });
   } else {
     const code = $('input-code').value.trim().toUpperCase();
     if (code.length < 4) { toast('A table code is four letters.'); $('input-code').focus(); return; }
@@ -679,6 +748,12 @@ async function copyLink() {
 
 // ---------------------------------------------------------------------- wiring
 
+$('game-grid').addEventListener('click', (e) => {
+  const tile = e.target.closest('.game-tile');
+  if (tile) selectGame(tile.dataset.game);
+});
+$('home-back').addEventListener('click', showPicker);
+
 $('btn-create').addEventListener('click', () => startGameFlow('create'));
 $('btn-join').addEventListener('click', () => startGameFlow('join'));
 $('input-code').addEventListener('keydown', (e) => { if (e.key === 'Enter') startGameFlow('join'); });
@@ -691,7 +766,7 @@ $('lobby-display').addEventListener('click', () => openOverlay('overlay-display'
 $('lobby-leave').addEventListener('click', () => {
   net.send({ t: 'leave' });
   net.close();
-  setScreen('home');
+  showPicker();
   setTimeout(() => net.connect(), 200);
 });
 
@@ -756,7 +831,7 @@ $('menu-body').addEventListener('click', (e) => {
     closeOverlays();
     net.send({ t: 'leave' });
     net.close();
-    setScreen('home');
+    showPicker();
     setTimeout(() => net.connect(), 200);
   }
 });
@@ -790,27 +865,42 @@ function escapeHtml(value) {
 
 function boot() {
   applyDisplayPrefs();
+  renderPicker();
   $('input-name').value = prefs.name;
 
-  const fromPath = location.pathname.replace(/^\//, '').toUpperCase().slice(0, 4);
+  const path = location.pathname.replace(/^\/+/, '').replace(/\/+$/, '');
+  const asCode = path.toUpperCase();
+  const isRoomCode = /^[A-Z0-9]{4}$/.test(asCode);
+  const fromPath = playableGame(path.toLowerCase());
+
   const session = loadJSON(SESSION_KEY, {});
   const fresh = session.at && Date.now() - session.at < SESSION_TTL;
 
   net.connect();
 
-  if (/^[A-Z0-9]{4}$/.test(fromPath)) {
-    $('input-code').value = fromPath;
+  if (isRoomCode) {
+    // Someone tapped a shared table link.
+    $('input-code').value = asCode;
     if (prefs.name) {
-      net.setRejoin({ code: fromPath, name: prefs.name, playerId: readSessionPlayerId(fromPath) });
-      net.send({ t: 'join', code: fromPath, name: prefs.name, playerId: readSessionPlayerId(fromPath) });
+      const playerId = readSessionPlayerId(asCode);
+      net.setRejoin({ code: asCode, name: prefs.name, playerId });
+      net.send({ t: 'join', code: asCode, name: prefs.name, playerId });
     } else {
+      setScreen('home');
+      $('home-game-name').textContent = 'Join a table';
+      $('home-game-blurb').textContent = `You were invited to table ${asCode}.`;
       $('input-name').focus();
     }
-  } else if (fresh && session.code && prefs.name) {
-    // Picked the phone back up, or hit refresh mid-hand.
-    net.setRejoin({ code: session.code, name: prefs.name, playerId: session.playerId });
-    net.send({ t: 'join', code: session.code, name: prefs.name, playerId: session.playerId });
+    return;
   }
+
+  if (fromPath) { selectGame(fromPath.id); return; }
+
+  // Refreshing mid-game keeps the /CODE path, so it is handled above. Reaching
+  // the root means "take me home" -- offer the way back, do not force it.
+  if (fresh && session.code && prefs.name) showRejoinOffer(session);
+
+  setScreen('picker');
 }
 
 boot();
