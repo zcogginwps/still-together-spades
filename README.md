@@ -6,6 +6,8 @@ something to do with their hands while they talk.
 Open the site, pick a game, start a table, and send the link to everyone else on
 the call. They tap it and sit down. No accounts, no app install, no downloads.
 
+**Play the beta:** <https://still-together-classics.onrender.com>
+
 > **Status: beta.** **Spades** is playable end to end. The other seven games are
 > listed on the home screen so the shape of the series is visible, and each one
 > says *Soon* until its engine exists &mdash; tapping it tells you so rather than
@@ -129,6 +131,8 @@ Node 20 or newer. The only runtime dependency is `ws`.
 The server is a single Node process holding game state in memory, so it needs a
 real host &mdash; GitHub Pages and other static hosts cannot run it. Whatever you
 pick must support **WebSockets**: every phone holds an open socket to `/ws`.
+
+The beta above is already deployed this way.
 
 ### Render, one click
 
