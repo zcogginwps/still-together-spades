@@ -30,6 +30,42 @@ const host = await newPhone('host');
 await host.page.goto(BASE);
 await host.page.waitForSelector('body[data-screen="picker"]', { timeout: 5000 });
 
+const ftDefault = await host.page.$eval('body', (b) => b.dataset.ft);
+ftDefault === 'tr' ? ok('a fresh phone reserves the top-right corner by default') : bad('default corner', ftDefault);
+
+// The window floats over the whole app, so the reserve must be on the picker too.
+const pickerReserve = await host.page.$eval('#ft-reserve', (n) => {
+  const r = n.getBoundingClientRect();
+  return {
+    shown: getComputedStyle(n).display !== 'none',
+    fixed: getComputedStyle(n).position === 'fixed',
+    fromTop: Math.round(r.top),
+    fromRight: Math.round(window.innerWidth - r.right),
+  };
+});
+pickerReserve.shown && pickerReserve.fixed
+  ? ok(`reserve is on the home screen too, pinned to the viewport (${pickerReserve.fromTop}px from top, ${pickerReserve.fromRight}px from right)`)
+  : bad('reserve not present/fixed on the picker', JSON.stringify(pickerReserve));
+
+// Nothing tappable may sit underneath it, on any screen.
+const overlapOn = async (page, label) => page.evaluate((lbl) => {
+  const ft = document.getElementById('ft-reserve').getBoundingClientRect();
+  const hits = [];
+  for (const el of document.querySelectorAll('button, input, a, .game-tile, .card')) {
+    const r = el.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) continue;
+    if (el.closest('[hidden]') || el.offsetParent === null) continue;
+    const inter = Math.max(0, Math.min(ft.right, r.right) - Math.max(ft.left, r.left)) *
+                  Math.max(0, Math.min(ft.bottom, r.bottom) - Math.max(ft.top, r.top));
+    if (inter > 120) hits.push(`${lbl}:${el.id || el.className.split(' ')[0]}`);
+  }
+  return hits;
+}, label);
+
+const pickerHits = await overlapOn(host.page, 'picker');
+pickerHits.length === 0 ? ok('nothing tappable on the picker sits under the window') : bad('picker overlap', pickerHits.join(', '));
+await host.page.screenshot({ path: 'e2e-picker.png' });
+
 const tiles = await host.page.$$eval('.game-tile', (n) => n.map((t) => ({
   id: t.dataset.game,
   name: t.querySelector('.g-name').textContent,
@@ -47,7 +83,6 @@ const toastText = await host.page.textContent('#toast').catch(() => '');
 stillPicker === 'picker' && /not built yet/i.test(toastText)
   ? ok(`tapping Chess stays put and explains: "${toastText.trim()}"`)
   : bad('unbuilt game did not hold', `screen=${stillPicker} toast=${toastText}`);
-await host.page.screenshot({ path: 'e2e-picker.png' });
 
 console.log('\n--- 1. Host creates a table -------------------------------------');
 await host.page.click('.game-tile[data-game="spades"]');
@@ -224,6 +259,18 @@ await friends[0].page.screenshot({ path: 'e2e-scoreboard.png' });
 await friends[0].page.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => { o.hidden = true; }));
 
 console.log('\n--- 6. FaceTime corner reserves space ---------------------------');
+const tableHits = await overlapOn(host.page, 'table');
+tableHits.length === 0 ? ok('nothing tappable at the table sits under the window') : bad('table overlap', tableHits.join(', '));
+
+// Moving it to a bottom corner has to shift the hand, not just the seats.
+await host.page.click('#table-menu');
+await host.page.click('[data-action="display"]');
+await host.page.click('#corner-picker button[data-ft="br"]');
+await host.page.evaluate(() => document.querySelectorAll('.overlay').forEach((o) => { o.hidden = true; }));
+await host.page.waitForTimeout(400);
+const brHits = await overlapOn(host.page, 'table-br');
+brHits.length === 0 ? ok('and the same with the window in the bottom-right') : bad('bottom-right overlap', brHits.join(', '));
+
 await host.page.click('#table-menu');
 await host.page.click('[data-action="display"]');
 await host.page.click('#corner-picker button[data-ft="tr"]');
@@ -281,6 +328,35 @@ await host.page.waitForTimeout(200);
 const dismissed = await host.page.$eval('#rejoin', (n) => n.hidden);
 dismissed ? ok('and "No" clears it') : bad('rejoin offer would not dismiss');
 await host.page.screenshot({ path: 'e2e-home.png' });
+
+console.log('\n--- 9. House rules are remembered for next time -----------------');
+// Section 3 set "play to 200" and a 1.2s trick pause on the first table.
+await host.page.goto(BASE);
+await host.page.waitForSelector('body[data-screen="picker"]', { timeout: 8000 });
+await host.page.click('.game-tile[data-game="spades"]');
+await host.page.waitForSelector('body[data-screen="home"]');
+await host.page.click('#btn-create');
+await host.page.waitForSelector('body[data-screen="lobby"]', { timeout: 8000 });
+await host.page.waitForTimeout(400);
+
+const newCode = (await host.page.textContent('#lobby-code')).trim();
+const restored = await host.page.evaluate(() => ({
+  target: document.querySelector('#settings-list button[data-key="targetScore"][aria-pressed="true"]')?.textContent,
+  pause: document.querySelector('#settings-list button[data-key="trickPauseMs"][aria-pressed="true"]')?.textContent,
+  note: document.getElementById('rules-lock')?.textContent.trim(),
+}));
+restored.target === '200' && restored.pause === '1.2s'
+  ? ok(`a brand new table (${newCode}) opens with the last rules used: play to ${restored.target}, ${restored.pause} trick pause`)
+  : bad('house rules were not remembered', JSON.stringify(restored));
+/last settings/i.test(restored.note ?? '')
+  ? ok(`and says so: "${restored.note}"`)
+  : bad('no note explaining the restored rules', restored.note);
+
+await host.page.click('#btn-reset-rules');
+await host.page.waitForTimeout(400);
+const afterReset = await host.page.$eval('#settings-list button[data-key="targetScore"][aria-pressed="true"]', (b) => b.textContent);
+afterReset === '500' ? ok('Reset puts the standard game back (play to 500)') : bad('reset did not restore defaults', afterReset);
+await host.page.screenshot({ path: 'e2e-lobby-rules.png' });
 
 console.log('\n================================================================');
 console.log(fails.length === 0 ? 'ALL CHECKS PASSED' : `${fails.length} FAILURE(S): ${fails.join(' | ')}`);

@@ -95,7 +95,9 @@
     <div class="seat-grid" id="seat-grid"></div>
     <p class="seat-note">You and the player across from you are partners.</p>
 
-    <h2 class="section-head">House rules <span id="rules-lock" class="lock-note"></span></h2>
+    <h2 class="section-head">House rules <span id="rules-lock" class="lock-note"></span>
+      <button id="btn-reset-rules" class="reset-rules" hidden>Reset</button>
+    </h2>
     <div id="settings-list" class="settings-list"></div>
 
     <div id="watchers" class="watchers"></div>
@@ -120,8 +122,6 @@
   </header>
 
   <div class="table" id="table">
-    <div class="ft-reserve" id="ft-reserve"><span>FaceTime</span></div>
-
     <div class="seat seat-north" data-seat-pos="north"></div>
     <div class="seat seat-west"  data-seat-pos="west"></div>
     <div class="seat seat-east"  data-seat-pos="east"></div>
@@ -222,6 +222,10 @@
     </label>
   </div>
 </div>
+
+<!-- Where the FaceTime window goes. Fixed to the viewport so every screen
+     keeps clear of it, not just the card table. -->
+<div class="ft-reserve" id="ft-reserve" aria-hidden="true"><span>FaceTime</span></div>
 
 <div id="toast" class="toast" hidden></div>
 <div id="conn-banner" class="conn-banner" hidden>Reconnecting&hellip;</div>

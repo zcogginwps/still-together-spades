@@ -11,9 +11,15 @@ const DIRS = ['south', 'west', 'north', 'east'];   // clockwise from your seat
 
 const PREFS_KEY = 'st-spades:prefs';
 const SESSION_KEY = 'st-spades:session';
+const GAME_SETTINGS_KEY = 'st-spades:rules';
 const SESSION_TTL = 6 * 60 * 60 * 1000;
 
-const defaultPrefs = { name: '', ft: 'off', quickPlay: false, sound: true, bigCards: false, wakeLock: true };
+// Top right is where iOS parks the FaceTime window by default, so that is where
+// the table expects it until the player says otherwise.
+const defaultPrefs = {
+  name: '', ft: 'tr', ftChosen: false,
+  quickPlay: false, sound: true, bigCards: false, wakeLock: true,
+};
 
 function loadJSON(key, fallback) {
   try { return { ...fallback, ...JSON.parse(localStorage.getItem(key) || '{}') }; }
@@ -24,7 +30,26 @@ function saveJSON(key, value) {
 }
 
 const prefs = loadJSON(PREFS_KEY, defaultPrefs);
+// Anyone who never picked a corner gets the new default rather than the old one.
+if (!prefs.ftChosen) prefs.ft = defaultPrefs.ft;
 const savePrefs = () => saveJSON(PREFS_KEY, prefs);
+
+/** House rules are remembered per game, so a regular table starts where it left off. */
+function loadGameSettings(gameId) {
+  const saved = loadJSON(GAME_SETTINGS_KEY, {})[gameId];
+  return saved && typeof saved === 'object' ? saved : null;
+}
+function saveGameSettings(gameId, settings) {
+  if (!gameId || !settings) return;
+  const all = loadJSON(GAME_SETTINGS_KEY, {});
+  all[gameId] = settings;
+  saveJSON(GAME_SETTINGS_KEY, all);
+}
+function schemaDefaults() {
+  const out = {};
+  for (const group of app.schema) for (const item of group.items) out[item.key] = item.default;
+  return out;
+}
 
 // -------------------------------------------------------------------- app state
 
@@ -32,6 +57,7 @@ const net = new Net();
 const app = {
   schema: [],
   gameId: null,
+  restoredRules: false,
   state: null,
   picked: null,
   prevPhase: null,
@@ -213,7 +239,10 @@ function renderLobby() {
     grid.appendChild(div);
   }
 
-  $('rules-lock').textContent = s.isHost ? '' : `${s.hostName} sets these`;
+  $('rules-lock').textContent = s.isHost
+    ? (app.restoredRules ? 'your last settings' : '')
+    : `${s.hostName} sets these`;
+  $('btn-reset-rules').hidden = !s.isHost;
   renderSettings();
 
   const watching = s.watching ?? [];
@@ -387,7 +416,10 @@ function fitHand() {
   const count = wrap.children.length;
   if (count < 2) { wrap.style.setProperty('--overlap', '0px'); wrap.classList.remove('tight'); return; }
   const cardW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--card-w')) || 46;
-  const available = wrap.clientWidth - 12;
+  // clientWidth includes padding, which the cards cannot use.
+  const pad = getComputedStyle(wrap);
+  const padX = (parseFloat(pad.paddingLeft) || 0) + (parseFloat(pad.paddingRight) || 0);
+  const available = wrap.clientWidth - padX - 12;
   const needed = count * cardW;
   wrap.classList.toggle('tight', needed > available);
   if (needed <= available) {
@@ -640,6 +672,9 @@ function applyState(next) {
   if (!$('overlay-scores').hidden) renderScoreboard();
   if (!$('overlay-menu').hidden) renderMenu();
 
+  // Only the host's choices are worth keeping; a guest is playing someone else's rules.
+  if (next.isHost && next.game.phase === 'lobby') saveGameSettings(next.gameId, next.settings);
+
   saveJSON(SESSION_KEY, { code: next.code, playerId: next.youId, gameId: next.gameId, at: Date.now() });
 }
 
@@ -702,7 +737,9 @@ function startGameFlow(mode) {
 
   if (mode === 'create') {
     if (!app.gameId) { showPicker(); return; }
-    net.send({ t: 'create', name, gameId: app.gameId });
+    const saved = loadGameSettings(app.gameId);
+    app.restoredRules = Boolean(saved);
+    net.send({ t: 'create', name, gameId: app.gameId, settings: saved ?? undefined });
   } else {
     const code = $('input-code').value.trim().toUpperCase();
     if (code.length < 4) { toast('A table code is four letters.'); $('input-code').focus(); return; }
@@ -779,6 +816,12 @@ $('seat-grid').addEventListener('click', (e) => {
   else if (btn.dataset.remove !== undefined) net.send({ t: 'removeSeat', seat: Number(btn.dataset.remove) });
 });
 
+$('btn-reset-rules').addEventListener('click', () => {
+  net.send({ t: 'settings', patch: schemaDefaults() });
+  app.restoredRules = false;
+  toast('House rules back to the standard game.');
+});
+
 $('settings-list').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-key]');
   if (!btn || btn.disabled) return;
@@ -840,6 +883,7 @@ $('corner-picker').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-ft]');
   if (!btn) return;
   prefs.ft = btn.dataset.ft;
+  prefs.ftChosen = true;
   savePrefs();
   applyDisplayPrefs();
 });

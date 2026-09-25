@@ -40,8 +40,10 @@ every game marked playable has an engine and that no engine is orphaned.
 3. They tap **Share link** and send it to the group. Everyone else taps it.
 4. Swipe up to your home screen so FaceTime shrinks to its small floating window,
    then drag that window into a corner.
-5. In the game, open the menu and tell it which corner &mdash; the table keeps that
-   corner clear. Everyone picks their own; it is a per-phone setting.
+5. The app already keeps the **top right** clear, which is where iOS parks that
+   window. Moved it somewhere else? Open the menu and say which corner. Every
+   screen keeps clear of it, not just the card table, and everyone picks their
+   own &mdash; it is a per-phone setting.
 6. The host sets the house rules and taps **Start the game**.
 
 A four-letter table code is shown too, for anyone who would rather type it than
@@ -99,9 +101,13 @@ Two of those are worth a word:
   swept. Over a video call people look up, talk, and look back, so the default is
   slower than a typical online card game.
 
+The host's rules are remembered on their phone and restored the next time they
+start a table, so a group that always plays the same way never has to set them
+again. **Reset** in the lobby puts the standard game back.
+
 Each player also has their own display settings, which affect nobody else: the
-FaceTime corner, one-tap vs. tap-to-confirm card play, sound, larger cards, and
-keeping the screen awake.
+FaceTime corner (top right by default), one-tap vs. tap-to-confirm card play,
+sound, larger cards, and keeping the screen awake.
 
 ## Things it already handles
 
